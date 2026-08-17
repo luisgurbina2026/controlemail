@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Correos con Temporizador</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --card-active: #2ecc71;
+      --card-expired: #95a5a6;
+      --text-color: #2c3e50;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .form-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    input[type="email"] {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input[type="email"]:focus {
+      border-color: #3498db;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-add {
+      background-color: #3498db;
+      color: white;
+    }
+
+    .btn-add:hover {
+      background-color: #2980b9;
+    }
+
+    .cards-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .card {
+      padding: 20px;
+      border-radius: 8px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: background-color 0.4s ease;
+    }
+
+    /* Estado Verde Normal */
+    .card.active {
+      background-color: var(--card-active);
+    }
+
+    /* Estado Gris (Vencido) */
+    .card.expired {
+      background-color: var(--card-expired);
+    }
+
+    /* Estado Verde Titilando */
+    .card.flashing {
+      animation: blinkGreen 1s infinite alternate;
+    }
+
+    @keyframes blinkGreen {
+      0% {
+        background-color: #2ecc71;
+        box-shadow: 0 0 5px #2ecc71;
+      }
+      100% {
+        background-color: #27ae60;
+        box-shadow: 0 0 20px #2ecc71;
+      }
+    }
+
+    .card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .card-email {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .card-status {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .btn-expire {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .btn-expire:hover {
+      background-color: #c0392b;
+    }
+
+    .btn-stop-flash {
+      background-color: #f39c12;
+      color: white;
+      margin-left: 5px;
+    }
+
+    .btn-stop-flash:hover {
+      background-color: #d35400;
+    }
+
+    /* Modal / Popup styling */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .modal-content h3 {
+      margin: 0;
+      color: #333;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Gestor de Correos</h1>
+
+  <div class="form-container">
+    <input type="email" id="emailInput" placeholder="Ingrese un correo electrónico" required>
+    <button class="btn-add" id="btnInicio">Inicio</button>
+  </div>
+
+  <div class="cards-grid" id="cardsContainer"></div>
+
+  <!-- Modal para seleccionar Fecha y Hora -->
+  <div class="modal" id="dateModal">
+    <div class="modal-content">
+      <h3>Seleccionar Reactivación</h3>
+      <input type="datetime-local" id="reactivateTimeInput">
+      <div class="modal-actions">
+        <button onclick="closeModal()">Cancelar</button>
+        <button class="btn-add" onclick="confirmExpiration()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cards = [];
+    let currentCardId = null;
+
+    const emailInput = document.getElementById('emailInput');
+    const btnInicio = document.getElementById('btnInicio');
+    const cardsContainer = document.getElementById('cardsContainer');
+    const dateModal = document.getElementById('dateModal');
+    const reactivateTimeInput = document.getElementById('reactivateTimeInput');
+
+    // Crear una nueva Card
+    btnInicio.addEventListener('click', () => {
+      const email = emailInput.value.trim();
+      if (!email) return alert('Por favor ingresa un correo válido');
+
+      const card = {
+        id: Date.now(),
+        email: email,
+        status: 'active',
+        reactivateAt: null
+      };
+
+      cards.push(card);
+      emailInput.value = '';
+      renderCards();
+    });
+
+    // Renderizar la lista de Cards
+    function renderCards() {
+      cardsContainer.innerHTML = '';
+      cards.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = `card ${card.status}`;
+        
+        let statusText = '';
+        let actionButtons = '';
+
+        if (card.status === 'active') {
+          statusText = 'Estado: Habilitado (Verde)';
+          actionButtons = `<button class="btn-expire" onclick="openModal(${card.id})">Vencido</button>`;
+        } else if (card.status === 'expired') {
+          statusText = `Reactivación: ${new Date(card.reactivateAt).toLocaleString()}`;
+          actionButtons = `<span>Pausado</span>`;
+        } else if (card.status === 'flashing') {
+          statusText = '¡TIEMPO CUMPLIDO! (Reactivado)';
+          actionButtons = `
+            <button class="btn-stop-flash" onclick="acknowledgeFlash(${card.id})">Aceptar</button>
+            <button class="btn-expire" onclick="openModal(${card.id})">Vencido</button>
+          `;
+        }
+
+        cardEl.innerHTML = `
+          <div class="card-info">
+            <span class="card-email">${card.email}</span>
+            <span class="card-status">${statusText}</span>
+          </div>
+          <div>${actionButtons}</div>
+        `;
+        cardsContainer.appendChild(cardEl);
+      });
+    }
+
+    // Detener el titileo y dejar en verde fijo
+    function acknowledgeFlash(id) {
+      const card = cards.find(c => c.id === id);
+      if (card) {
+        card.status = 'active';
+        renderCards();
+      }
+    }
+
+    // Modal Handlers
+    function openModal(id) {
+      currentCardId = id;
+      reactivateTimeInput.value = '';
+      dateModal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      dateModal.style.display = 'none';
+      currentCardId = null;
+    }
+
+    // Confirmar marcar como vencido
+    function confirmExpiration() {
+      const selectedTime = reactivateTimeInput.value;
+      if (!selectedTime) return alert('Debes ingresar fecha y hora.');
+
+      const targetDate = new Date(selectedTime).getTime();
+      if (targetDate <= Date.now()) return alert('La fecha debe ser en el futuro.');
+
+      const card = cards.find(c => c.id === currentCardId);
+      if (card) {
+        card.status = 'expired';
+        card.reactivateAt = targetDate;
+      }
+
+      closeModal();
+      renderCards();
+    }
+
+    // Verificador automático cada segundo
+    setInterval(() => {
+      const now = Date.now();
+      let updated = false;
+
+      cards.forEach(card => {
+        if (card.status === 'expired' && card.reactivateAt && now >= card.reactivateAt) {
+          card.status = 'flashing';
+          card.reactivateAt = null;
+          updated = true;
+        }
+      });
+
+      if (updated) renderCards();
+    }, 1000);
+  </script>
+</body>
+</html>
