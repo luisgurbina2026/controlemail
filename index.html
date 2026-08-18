@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gestor de Correos con Temporizador</title>
   <style>
     :root {
@@ -12,33 +12,52 @@
       --text-color: #2c3e50;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       max-width: 800px;
-      margin: 40px auto;
-      padding: 0 20px;
+      margin: 0 auto;
+      padding: 10px 15px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* Mantiene fijo el fondo */
+    }
+
+    /* Header Fijo Optimizado para Móvil */
+    .header-fixed {
+      flex-shrink: 0;
+      background-color: var(--bg-color);
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 10px;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 25px;
+      margin: 5px 0 12px 0;
+      font-size: 1.4rem;
     }
 
     .form-container {
       display: flex;
-      gap: 10px;
-      margin-bottom: 30px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
 
     input[type="email"] {
       flex: 1;
       padding: 12px;
       border: 2px solid #ccc;
-      border-radius: 6px;
-      font-size: 16px;
+      border-radius: 8px;
+      font-size: 16px; /* Evita zoom automático en iPhone */
       outline: none;
+      min-width: 0;
     }
 
     input[type="email"]:focus {
@@ -46,12 +65,19 @@
     }
 
     button {
-      padding: 12px 20px;
+      padding: 12px 14px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: bold;
+      font-size: 0.9rem;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+      transform: scale(0.97);
     }
 
     .btn-add {
@@ -59,38 +85,91 @@
       color: white;
     }
 
-    .btn-add:hover {
-      background-color: #2980b9;
+    /* Panel de Estadísticas para Celular */
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      gap: 5px;
+      background: white;
+      padding: 10px 8px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
-    .cards-grid {
+    .stat-item {
+      font-size: 0.75rem;
+      font-weight: bold;
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      align-items: center;
+      text-align: center;
+    }
+
+    .stat-count {
+      font-size: 1.1rem;
+      margin-top: 2px;
+    }
+
+    /* Lista con Scroll Táctil */
+    .cards-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
     }
 
     .card {
-      padding: 20px;
-      border-radius: 8px;
+      padding: 14px 16px;
+      border-radius: 10px;
       color: white;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      gap: 10px;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.08);
       transition: background-color 0.4s ease;
     }
 
-    /* Estado Verde Normal */
+    /* Prevención de desbordamiento de texto */
+    .card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .card-email {
+      font-size: 0.95rem;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-status {
+      font-size: 0.8rem;
+      opacity: 0.95;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Estados visuales */
     .card.active {
       background-color: var(--card-active);
     }
 
-    /* Estado Gris (Vencido) */
     .card.expired {
       background-color: var(--card-expired);
     }
 
-    /* Estado Verde Titilando */
     .card.flashing {
       animation: blinkGreen 1s infinite alternate;
     }
@@ -102,61 +181,45 @@
       }
       100% {
         background-color: #27ae60;
-        box-shadow: 0 0 20px #2ecc71;
+        box-shadow: 0 0 15px #2ecc71;
       }
     }
 
-    .card-info {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .card-email {
-      font-size: 1.1rem;
-      font-weight: bold;
-    }
-
-    .card-status {
-      font-size: 0.85rem;
-      opacity: 0.9;
-    }
-
-    .btn-expire {
+    /* Botones personalizados */
+    .btn-mark-expired {
       background-color: #e74c3c;
       color: white;
     }
 
-    .btn-expire:hover {
-      background-color: #c0392b;
+    .btn-is-expired {
+      background-color: #000000;
+      color: #ffffff;
     }
 
     .btn-stop-flash {
       background-color: #f39c12;
       color: white;
-      margin-left: 5px;
     }
 
-    .btn-stop-flash:hover {
-      background-color: #d35400;
-    }
-
-    /* Modal / Popup styling */
+    /* Modal emergente */
     .modal {
       display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
       justify-content: center;
       align-items: center;
+      z-index: 1000;
+      padding: 20px;
     }
 
     .modal-content {
       background: white;
-      padding: 25px;
-      border-radius: 8px;
-      width: 300px;
+      padding: 20px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 320px;
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -165,6 +228,7 @@
     .modal-content h3 {
       margin: 0;
       color: #333;
+      font-size: 1.1rem;
     }
 
     .modal-actions {
@@ -172,17 +236,43 @@
       justify-content: flex-end;
       gap: 10px;
     }
+
+    input[type="datetime-local"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Gestor de Correos</h1>
+  <!-- Header Fijo con Contadores -->
+  <div class="header-fixed">
+    <h1>Gestor de Correos</h1>
 
-  <div class="form-container">
-    <input type="email" id="emailInput" placeholder="Ingrese un correo electrónico" required>
-    <button class="btn-add" id="btnInicio">Inicio</button>
+    <div class="form-container">
+      <input type="email" id="emailInput" placeholder="Ingrese un correo" required>
+      <button class="btn-add" id="btnInicio">Inicio</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item" style="color: #27ae60;">
+        Activos
+        <span class="stat-count" id="countActive">0</span>
+      </div>
+      <div class="stat-item" style="color: #7f8c8d;">
+        Vencidos
+        <span class="stat-count" id="countExpired">0</span>
+      </div>
+      <div class="stat-item" style="color: #d35400;">
+        Disponibles &le; 2h
+        <span class="stat-count" id="countSoon">0</span>
+      </div>
+    </div>
   </div>
 
+  <!-- Contenedor con Scroll de Correos -->
   <div class="cards-grid" id="cardsContainer"></div>
 
   <!-- Modal para seleccionar Fecha y Hora -->
@@ -198,7 +288,8 @@
   </div>
 
   <script>
-    let cards = [];
+    // Carga inicial desde localStorage
+    let cards = JSON.parse(localStorage.getItem('emailTrackerCards')) || [];
     let currentCardId = null;
 
     const emailInput = document.getElementById('emailInput');
@@ -207,7 +298,16 @@
     const dateModal = document.getElementById('dateModal');
     const reactivateTimeInput = document.getElementById('reactivateTimeInput');
 
-    // Crear una nueva Card
+    const countActiveEl = document.getElementById('countActive');
+    const countExpiredEl = document.getElementById('countExpired');
+    const countSoonEl = document.getElementById('countSoon');
+
+    // Guardar estado en memoria del teléfono
+    function saveToStorage() {
+      localStorage.setItem('emailTrackerCards', JSON.stringify(cards));
+    }
+
+    // Agregar nuevo correo
     btnInicio.addEventListener('click', () => {
       const email = emailInput.value.trim();
       if (!email) return alert('Por favor ingresa un correo válido');
@@ -220,11 +320,37 @@
       };
 
       cards.push(card);
+      saveToStorage();
       emailInput.value = '';
       renderCards();
     });
 
-    // Renderizar la lista de Cards
+    // Actualizar contadores del Header
+    function updateStats() {
+      const now = Date.now();
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+
+      let activeCount = 0;
+      let expiredCount = 0;
+      let soonCount = 0;
+
+      cards.forEach(card => {
+        if (card.status === 'active' || card.status === 'flashing') {
+          activeCount++;
+        } else if (card.status === 'expired') {
+          expiredCount++;
+          if (card.reactivateAt && (card.reactivateAt - now <= twoHoursMs)) {
+            soonCount++;
+          }
+        }
+      });
+
+      countActiveEl.textContent = activeCount;
+      countExpiredEl.textContent = expiredCount;
+      countSoonEl.textContent = soonCount;
+    }
+
+    // Renderizar tarjetas
     function renderCards() {
       cardsContainer.innerHTML = '';
       cards.forEach(card => {
@@ -235,40 +361,43 @@
         let actionButtons = '';
 
         if (card.status === 'active') {
-          statusText = 'Estado: Habilitado (Verde)';
-          actionButtons = `<button class="btn-expire" onclick="openModal(${card.id})">Vencido</button>`;
+          statusText = 'Estado: Habilitado';
+          actionButtons = `<button class="btn-mark-expired" onclick="openModal(${card.id})">Marcar como vencido</button>`;
         } else if (card.status === 'expired') {
           statusText = `Reactivación: ${new Date(card.reactivateAt).toLocaleString()}`;
-          actionButtons = `<span>Pausado</span>`;
+          actionButtons = `<button class="btn-is-expired" onclick="openModal(${card.id})">Vencido</button>`;
         } else if (card.status === 'flashing') {
-          statusText = '¡TIEMPO CUMPLIDO! (Reactivado)';
+          statusText = '¡TIEMPO CUMPLIDO!';
           actionButtons = `
             <button class="btn-stop-flash" onclick="acknowledgeFlash(${card.id})">Aceptar</button>
-            <button class="btn-expire" onclick="openModal(${card.id})">Vencido</button>
+            <button class="btn-mark-expired" onclick="openModal(${card.id})">Marcar como vencido</button>
           `;
         }
 
         cardEl.innerHTML = `
           <div class="card-info">
-            <span class="card-email">${card.email}</span>
+            <span class="card-email" title="${card.email}">${card.email}</span>
             <span class="card-status">${statusText}</span>
           </div>
-          <div>${actionButtons}</div>
+          <div class="card-actions">${actionButtons}</div>
         `;
         cardsContainer.appendChild(cardEl);
       });
+
+      updateStats();
     }
 
-    // Detener el titileo y dejar en verde fijo
+    // Aceptar titileo y volver a verde
     function acknowledgeFlash(id) {
       const card = cards.find(c => c.id === id);
       if (card) {
         card.status = 'active';
+        saveToStorage();
         renderCards();
       }
     }
 
-    // Modal Handlers
+    // Modales
     function openModal(id) {
       currentCardId = id;
       reactivateTimeInput.value = '';
@@ -280,7 +409,7 @@
       currentCardId = null;
     }
 
-    // Confirmar marcar como vencido
+    // Confirmar vencimiento
     function confirmExpiration() {
       const selectedTime = reactivateTimeInput.value;
       if (!selectedTime) return alert('Debes ingresar fecha y hora.');
@@ -292,6 +421,7 @@
       if (card) {
         card.status = 'expired';
         card.reactivateAt = targetDate;
+        saveToStorage();
       }
 
       closeModal();
@@ -311,8 +441,16 @@
         }
       });
 
-      if (updated) renderCards();
+      if (updated) {
+        saveToStorage();
+        renderCards();
+      } else {
+        updateStats();
+      }
     }, 1000);
+
+    // Render inicial al cargar la página
+    renderCards();
   </script>
 </body>
 </html>
